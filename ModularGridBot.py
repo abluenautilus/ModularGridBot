@@ -61,4 +61,4 @@ async def on_message(message):
             await message.channel.send("Module not parsed")
 
 
-client.run('MTA0NTExNTYyMjg4MDcyMzA0Ng.GQYiht.vWtqN6A6kJptXZD1Pej2wWHsecOVKLmZVFnDoU')
+client.run('<<INSERT TOKEN>>')
