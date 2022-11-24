@@ -3,7 +3,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 from MGModule import MGModule
-
+import os
 
 intents = discord.Intents.all()
 client = discord.Client(command_prefix='!', intents=intents)
@@ -61,4 +61,4 @@ async def on_message(message):
             await message.channel.send("Module not parsed")
 
 
-client.run('<<INSERT TOKEN>>')
+client.run(os.environ['DISCORD_TOKEN'])
