@@ -3,23 +3,24 @@ import requests
 import re
 
 url_main = "https://modulargrid.net"
-max_results = 5
+max_results = 10
+
 
 class MGModule:
 
     def __init__(self):
-        self.vendor = ""        # name of vendor
-        self.module_name = ""   # name of module
-        self.module_slug = ""   # module slug
-        self.price = 0          # module price in currency
-        self.hp = 0             # module with in hp
-        self.depth = 0          # module depth in mm
-        self.v12 = 0            # current draw 12V
-        self.v12n = 0           # current draw -12V
-        self.v5 = 0             # current draw 5v
-        self.currency = ""     # currency for price
-        self.img_url = ""       # url for module image
-        self.url = ""           # main url for module
+        self.vendor = ""  # name of vendor
+        self.module_name = ""  # name of module
+        self.module_slug = ""  # module slug
+        self.price = 0  # module price in currency
+        self.hp = 0  # module with in hp
+        self.depth = 0  # module depth in mm
+        self.v12 = 0  # current draw 12V
+        self.v12n = 0  # current draw -12V
+        self.v5 = 0  # current draw 5v
+        self.currency = ""  # currency for price
+        self.img_url = ""  # url for module image
+        self.url = ""  # main url for module
 
     def initFromPage(self, response):
         soup = BeautifulSoup(response.content, "html.parser")
@@ -43,65 +44,75 @@ class MGModule:
         module_and_vendor = soup.find("meta", property="og:title")["content"]
         self.module_slug = re.sub(" ", "-", module_and_vendor)
 
-        # Get module info
+        # Get basic module info
         box_specs = soup.find("div", class_="box-specs")
 
         hp_text = box_specs.find("dd", string=lambda text: "HP" in text)
         if hp_text:
             hp_text = hp_text.text
-            result = re.match("(\d*) HP",hp_text)
+            result = re.match("(\d*) HP", hp_text)
             if result:
                 self.hp = result.groups()[0]
         else:
             self.hp = "??"
 
-        depth_text = box_specs.find("dd", string=lambda text: "deep" in text)
-        if depth_text:
-            depth_text = depth_text.text
-            result = re.match("^(\d*)",depth_text)
-            if result:
-                self.depth = result.groups()[0]
+        # some modules don't list depth
+        if "deep" not in box_specs.decode():
+            self.depth = "??"
         else:
-            self.depth_text = "??"
-
-        muted = box_specs.find("dd", class_="muted")
-        if muted:
-            mt = muted.text
-        else:
-            mt = ""
-        if not "+12V" in mt:
-            V12_text = box_specs.find("dd", string=lambda text: "+12V" in text)
-            if V12_text:
-                V12_text = V12_text.text
-                result = re.match("^(\d*)",V12_text)
+            depth_text = box_specs.find("dd", string=lambda text: "deep" in text)
+            if depth_text:
+                depth_text = depth_text.text
+                result = re.match("^(\d*)", depth_text)
                 if result:
-                    self.v12 = result.groups()[0]
+                    self.depth = result.groups()[0]
+            else:
+                self.depth_text = "??"
+
+        # current draw
+        if "does not draw current" in box_specs.decode():
+            self.v12 = "none"
+            self.v12n = "none"
+            self.v5 = "none"
+        else:
+            muted = box_specs.find_all("dd", class_="muted")
+            if muted:
+                mt = " ".join([elem.text for elem in muted])
+            else:
+                mt = ""
+            if not "+12V" in mt:
+                V12_text = box_specs.find("dd", string=lambda text: "+12V" in text)
+                if V12_text:
+                    V12_text = V12_text.text
+                    result = re.match("^(\d*)", V12_text)
+                    if result:
+                        self.v12 = result.groups()[0]
+                else:
+                    self.v12 = "??"
             else:
                 self.v12 = "??"
-        else:
-            self.v12 = "??"
 
-        if not "-12V" in mt:
-            V12N_text = box_specs.find("dd", string=lambda text: "-12V" in text)
-            if V12N_text:
-                V12N_text = V12N_text.text
-                result = re.match("^(\d*)",V12N_text)
-                if result:
-                    self.v12n = result.groups()[0]
+            if not "-12V" in mt:
+                V12N_text = box_specs.find("dd", string=lambda text: "-12V" in text)
+                if V12N_text:
+                    V12N_text = V12N_text.text
+                    result = re.match("^(\d*)", V12N_text)
+                    if result:
+                        self.v12n = result.groups()[0]
+                else:
+                    self.v12n = "??"
             else:
                 self.v12n = "??"
-        else:
-            self.v12n = "??"
 
-        if not "5V" in mt:
-            V5_text = box_specs.find("dd", string=lambda text: "5V" in text)
-            if V5_text:
-                V5_text = V5_text.text
-                result = re.match("^(\d*)",V5_text)
-                if result:
-                    self.v5 = result.groups()[0]
-        else:
-            self.v5 = "??"
+            if not "5V" in mt:
+                V5_text = box_specs.find("dd", string=lambda text: "5V" in text)
+                if V5_text:
+                    V5_text = V5_text.text
+                    result = re.match("^(\d*)", V5_text)
+                    if result:
+                        self.v5 = result.groups()[0]
+            else:
+                self.v5 = "??"
 
         price = soup.find("span", class_="currency")
 
@@ -121,13 +132,17 @@ class MGModule:
 
     async def render(self, message, bot_message):
 
+        # print module info out to the channel
         await message.channel.send("**%s %s**" % (self.vendor, self.module_name))
         await message.channel.send(self.img_url)
-        await message.channel.send("```css\n%s HP\n%s mm deep\nCurrent draw: %s/%s/%s\nPrice: %s%s```" % (
-            self.hp, self.depth, self.v12, self.v12n, self.v5, self.currency,self.price))
+        await message.channel.send("```css\n%s HP\n%s mm deep\nCurrent draw: %s/%s/%s mA\nPrice: %s%s```" % (
+            self.hp, self.depth, self.v12, self.v12n, self.v5, self.currency, self.price))
         await message.channel.send("<%s>" % self.url)
 
     async def search(self, searchterm, message, bot_message, num_alternates):
+
+        # Search for module info on MG
+        # Uses GET request
 
         num_alternates = int(num_alternates)
         search_url = "%s/e/modules/find" % (url_main)
@@ -143,7 +158,7 @@ class MGModule:
                 'SearchSet': 'all',
                 'SearchMarketplace': '-',
                 'SearchIsmodeled': '0',
-                'SearchShowothers': '0',
+                'SearchShowothers': '1',
                 'order': "popular",
                 'direction': "asc"
                 }
@@ -166,13 +181,12 @@ class MGModule:
                 # Fetch URL
 
                 response = requests.get(url)
+
+                # Show the single result
                 self.initFromPage(response)
                 await self.render(message, bot_message)
             else:
-                if num_found > max_results:
-                    shown_results = max_results
-                else:
-                    shown_results = num_found
+
                 await message.channel.send("%d results, showing most popular" % (num_found))
                 main_result = box_modules[0]
                 module_name = main_result.find(class_="module-name")
@@ -193,10 +207,11 @@ class MGModule:
                     self.initFromPage(response)
                     await self.render(message, bot_message)
 
-            if num_alternates > 0:
+            # Display list of alternate results
+            if num_alternates > 0 and num_found > 0:
                 await message.channel.send("Other results:")
 
-                for result_count in range(1, min(num_alternates,num_found)):
+                for result_count in range(1, min(num_alternates, num_found)):
                     result = box_modules[result_count]
                     url_to_load = ""
 
@@ -214,9 +229,7 @@ class MGModule:
                             urlstem = url["href"]
                             url = "%s%s" % (url_main, urlstem)
 
-                        await message.channel.send("%d: %s %s <%s>" % (result_count+1, vendor, module_name, url))
-
-
+                        await message.channel.send("%d: %s %s <%s>" % (result_count + 1, vendor, module_name, url))
 
         else:
             await message.channel.send("Error searching for module.")

@@ -21,14 +21,15 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    # Wait for a message in the right format
     if message.content.startswith("[[") and message.content.endswith("]]"):
 
         themodule = MGModule()
-        # Extract the module name from between the brackets
+        # Extract the module name and command params from between the brackets
         match = re.match("\[\[(.*)\]\]", message.content)
         if match.groups():
             command = match.groups()[0]
-            result = re.match("([a-zA-Z\s]*):?\s?(\d*)",command)
+            result = re.match("([#a-zA-Z0-9'\-\s]*):?\s?(\d*)",command)
             if result:
                 module = result.groups()[0]
                 if result.groups()[1]:
@@ -39,15 +40,19 @@ async def on_message(message):
                 await message.channel.send("Error parsing command")
             if module:
                 # Replace spaces with dashes
-                module_slug = re.sub(" ", "-", module)
+                module_slug = re.sub("[\(\)]", '', module)
+                module_slug = re.sub(" ", "-", module_slug)
+                module_slug = re.sub("'", "-", module_slug)
+
                 bot_message = await message.channel.send("Looking for %s..." % module)
+                print("Module slug: %s" % module_slug)
                 # Create URL
                 url = "%s/e/%s" % (url_main, module_slug)
                 # Fetch URL
                 response = requests.get(url)
 
                 if response.status_code != 200:
-                    await bot_message.edit(content="No URL match, searching database...")
+                    await bot_message.edit(content="No URL match for slug %s, searching database...." % module_slug)
                     await themodule.search(module, message, bot_message, num_alternates)
                     await bot_message.delete()
 
