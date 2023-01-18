@@ -1,4 +1,4 @@
-#Eurorack module search bot
+# Eurorack module search bot
 
 This bot queries modulargrid to retrieve information about eurorack modules. 
 
