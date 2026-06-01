@@ -23,19 +23,22 @@ class MGModule:
         self.url = ""  # main url for module
 
     def initFromPage(self, response):
+
         soup = BeautifulSoup(response.content, "html.parser")
 
         self.url = response.url
 
         # Get image URL
-        centered_module = soup.find("a", class_="centered-module")
+        
+        centered_module = soup.find("link", {'rel': 'image_src'})
         img_loc = centered_module['href']
         self.img_url = "%s/%s" % (url_main, img_loc)
 
         # Get module metadata
-        self.module_name = centered_module.attrs['title']
+        title = soup.find("meta",{'property':'og:title'})
+        self.module_name = title['content']
 
-        vendor = soup.find("div", class_="sub-header").find("span")
+        vendor = soup.find("span", class_="vendor-name")
         if vendor:
             self.vendor = vendor.text
         else:
@@ -55,6 +58,7 @@ class MGModule:
                 self.hp = result.groups()[0]
         else:
             self.hp = "??"
+
 
         # some modules don't list depth
         if "deep" not in box_specs.decode():
