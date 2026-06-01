@@ -32,7 +32,7 @@ class MGModule:
         
         centered_module = soup.find("link", {'rel': 'image_src'})
         img_loc = centered_module['href']
-        self.img_url = "%s/%s" % (url_main, img_loc)
+        self.img_url =  img_loc
 
         # Get module metadata
         title = soup.find("meta",{'property':'og:title'})
