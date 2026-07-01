@@ -35,9 +35,8 @@ class MGModule:
         self.img_url =  img_loc
 
         # Get module metadata
-        title = soup.find("meta",{'property':'og:title'})
-        self.module_name = title['content']
-
+        title = soup.find("div",class_="module-view-header").find("h")
+        self.module_name = title.text.strip()
         vendor = soup.find("span", class_="vendor-name")
         if vendor:
             self.vendor = vendor.text
